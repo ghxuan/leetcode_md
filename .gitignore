@@ -8,3 +8,4 @@ dist/
 setup.py
 upx/
 srv/
+*.db

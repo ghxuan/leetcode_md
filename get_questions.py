@@ -1,12 +1,25 @@
+import os
+import time
 import json
+import sqlite3
 import requests
 from requests_toolbelt import MultipartEncoder
 
 from srv.settings import *
 
+requests.packages.urllib3.disable_warnings()
+
+s = time.time()
+
 
 class Leetcode:
     def __init__(self):
+        self.con = sqlite3.connect('leetcode.db')
+        self.cur = self.con.cursor()
+        self.cur.execute(
+            'CREATE TABLE IF NOT EXISTS questions (id text, title text, titleSlug text, '
+            'articleLive text, articleSlug text, level text, totalSubmitted text, totalAcs text, '
+            'frontendId text, translatedTitle text, content text, translatedContent text, codeSnippets text)')
         self.hea = {
             'referer': 'https://leetcode-cn.com',
             'user-agent': 'User-Agent:Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0;',
@@ -15,11 +28,13 @@ class Leetcode:
         self.cookies = None
         # self.get_cookies()
         # self.login()
-        # self.get_question('two-sum')
+        # self.get_question('customers-who-bought-all-products')
         self.re_get()
         pass
 
     def re_get(self):
+        self.cur.execute('')
+        self.con.commit()
         self.get_cookies()
         self.login()
         self.get_questions()
@@ -62,37 +77,52 @@ class Leetcode:
             'x-csrftoken': self.cookies.get('csrftoken'),
             'content-type': 'application/json',
         }
-        response = {"operationName": "getQuestionTranslation",
-                    "variables": {},
-                    "query":
-                        "query getQuestionTranslation($lang: String) "
-                        "{\n  translations: allAppliedQuestionTranslations(lang: $lang) "
-                        "{\n    title\n    question "
-                        "{\n      questionId\n      __typename\n    }\n    __typename\n  }\n}\n"}
-        res = requests.post('https://leetcode-cn.com/graphql',
-                            headers=hea,
-                            cookies=self.cookies,
-                            verify=False,
-                            data=json.dumps(response))
+        # response = {"operationName": "getQuestionTranslation",
+        #             "variables": {},
+        #             "query":
+        #                 "query getQuestionTranslation($lang: String) "
+        #                 "{\n  translations: allAppliedQuestionTranslations(lang: $lang) "
+        #                 "{\n    title\n    question "
+        #                 "{\n      questionId\n      __typename\n    }\n    __typename\n  }\n}\n"}
+        # res = requests.post('https://leetcode-cn.com/graphql',
+        #                     headers=hea,
+        #                     cookies=self.cookies,
+        #                     verify=False,
+        #                     data=json.dumps(response))
         all_res = requests.get('https://leetcode-cn.com/api/problems/all/',
                                headers=hea,
                                cookies=self.cookies,
                                verify=False)
         level = {1: '简单', 2: '中等', 3: '困难'}
-        title = dict((
-            (int(question['question']['questionId']), question['title'])
-            for question in json.loads(res.text)['data']['translations']
-            if question['title']))
-        parameters = [(status['stat']['question_id'], title.get(status['stat']['question_id'], 'null'),
-                       status['stat']['question__title'], status['stat']['question__title_slug'],
-                       status['stat']['question__article__live'], status['stat']['question__article__slug'],
-                       level[status['difficulty']['level']], status['stat']['total_submitted'],
-                       status['stat']['total_acs'], status['stat']['frontend_question_id'])
-                      for status in json.loads(all_res.text)['stat_status_pairs']]
-        for para in parameters[::-1]:
-            print(para)
-            self.get_question(para[3])
+        # title = dict((
+        #     (int(question['question']['questionId']), question['title'])
+        #     for question in json.loads(res.text)['data']['translations']
+        #     if question['title']))
+        # parameters = [(status['stat']['question_id'], title.get(status['stat']['question_id'], 'null'),
+        #                status['stat']['question__title'], status['stat']['question__title_slug'],
+        #                status['stat']['question__article__live'], status['stat']['question__article__slug'],
+        #                level[status['difficulty']['level']], status['stat']['total_submitted'],
+        #                status['stat']['total_acs'], status['stat']['frontend_question_id'])
+        #               for status in json.loads(all_res.text)['stat_status_pairs']]
+        # for para in parameters[::-1]:
+        #     print(para)
+        #     self.get_question(para[3])
+        for status in json.loads(all_res.text)['stat_status_pairs'][::-1]:
+            title = status['stat']['question__title'].replace("'", '"')
+            print(status['stat']['question_id'], title)
+            self.cur.execute(
+                f"INSERT INTO questions(id, title, titleSlug, articleLive, articleSlug, level, totalSubmitted, "
+                f"totalAcs, frontendId, translatedTitle, content, translatedContent) "
+                f"VALUES ('{status['stat']['question_id']}', '{title}"
+                f"', '{status['stat']['question__title_slug']}', '{status['stat']['question__article__live']}', "
+                f"'{status['stat']['question__article__slug']}', '{level[status['difficulty']['level']]}', "
+                f"'{status['stat']['total_submitted']}', '{status['stat']['total_acs']}', "
+                f"'{status['stat']['frontend_question_id']}', "
+                f"'{self.get_question(status['stat']['question__title_slug'])}')")
+        self.con.commit()
+        pass
 
+    # 获取单个题的标题和题
     def get_question(self, slug):
         hea = {
             'x-csrftoken': self.cookies.get('csrftoken'),
@@ -113,11 +143,22 @@ class Leetcode:
                             cookies=self.cookies,
                             data=json.dumps(response))
         data = json.loads(res.text)['data']['question']
-        # print(data["codeSnippets"])
-        # print(data["content"])
-        # print(data["translatedContent"])
-        print(data["title"], data.get('translatedTitle', 'null'))
+        # return (data.get('translatedTitle', data["title"]), data["content"],
+        #         data.get('translatedContent', data["content"]), str(data["codeSnippets"]))
+        if data["content"]:
+            temp = "', '".join((data.get('translatedTitle', data["title"]),
+                                data["content"].replace("'", '"'),
+                                data['translatedContent']))
+        else:
+            temp = "', '".join((data['title'] if data['translatedTitle'] is None else data['translatedTitle'],
+                                '', ''
+                                ))
+        return temp
+
+    def write_md(self):
+        pass
 
 
 if __name__ == '__main__':
     lee = Leetcode()
+    print(time.time() - s)
