@@ -28,13 +28,18 @@ class Leetcode:
         self.cookies = None
         # self.get_cookies()
         # self.login()
+        # self.get_questions()
         # self.get_question('customers-who-bought-all-products')
         self.re_get()
         pass
 
     def re_get(self):
-        self.cur.execute('')
+        self.cur.execute('DROP TABLE questions')
         self.con.commit()
+        self.cur.execute(
+            'CREATE TABLE IF NOT EXISTS questions (id text, title text, titleSlug text, '
+            'articleLive text, articleSlug text, level text, totalSubmitted text, totalAcs text, '
+            'frontendId text, translatedTitle text, content text, translatedContent text, codeSnippets text)')
         self.get_cookies()
         self.login()
         self.get_questions()
@@ -109,7 +114,7 @@ class Leetcode:
         #     self.get_question(para[3])
         for status in json.loads(all_res.text)['stat_status_pairs'][::-1]:
             title = status['stat']['question__title'].replace("'", '"')
-            print(status['stat']['question_id'], title)
+            print(status['stat']['question_id'], title, status['stat']['frontend_question_id'])
             self.cur.execute(
                 f"INSERT INTO questions(id, title, titleSlug, articleLive, articleSlug, level, totalSubmitted, "
                 f"totalAcs, frontendId, translatedTitle, content, translatedContent) "
@@ -162,3 +167,5 @@ class Leetcode:
 if __name__ == '__main__':
     lee = Leetcode()
     print(time.time() - s)
+    # 447.82914447784424
+    # 480.8169491291046
