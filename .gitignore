@@ -9,3 +9,4 @@ setup.py
 upx/
 srv/
 *.db
+md_files/

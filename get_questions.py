@@ -3,6 +3,7 @@ import time
 import json
 import sqlite3
 import requests
+import datetime
 from requests_toolbelt import MultipartEncoder
 
 from srv.settings import *
@@ -30,7 +31,7 @@ class Leetcode:
         # self.login()
         # self.get_questions()
         # self.get_question('customers-who-bought-all-products')
-        self.re_get()
+        # self.re_get()
         pass
 
     def re_get(self):
@@ -160,12 +161,32 @@ class Leetcode:
                                 ))
         return temp
 
-    def write_md(self):
+    def write_one_md(self, title=None, frontendId=None, translatedTitle=None, code='Python3'):
+        where = [f'title="{title}"' if title is not None else '',
+                 f'frontendId="{frontendId}"' if frontendId is not None else '',
+                 f'translatedTitle="{translatedTitle}"' if translatedTitle is not None else '']
+        where = 'WHERE ' + ' AND '.join(filter(lambda x: x, where)) if set(where) != {''} else ''
+        self.cur.execute(f'SELECT frontendId, translatedTitle, title, titleSlug, translatedContent '
+                         f'FROM questions {where}')
+        temps = self.cur.fetchall()
+        for temp in temps:
+            frontendId, translatedTitle, title, titleSlug, translatedContent = temp
+            if translatedContent == '':
+                print('该题是会员题，请账号充值会员后再看')
+            with open(f'md_files/{frontendId}、{titleSlug}.md', 'w+', encoding='utf-8') as f:
+                time_ = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                f.write(
+                    f'---\ntitle: leetcode : {translatedTitle if translatedTitle else title}\ndate: {time_}\n'
+                    f'tags: [{code}, Leetcode]\n---\n\n')
+                f.write(f'[{translatedTitle if translatedTitle else title}]'
+                        f'(https://leetcode-cn.com/problems/{titleSlug}/)\n\n')
+                f.write(translatedContent.replace('</p>', '</p>\n\n<!-- more -->', 1))
         pass
 
 
 if __name__ == '__main__':
     lee = Leetcode()
+    lee.write_one_md(frontendId=3)
     print(time.time() - s)
     # 447.82914447784424
     # 480.8169491291046
