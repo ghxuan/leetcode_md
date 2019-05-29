@@ -161,7 +161,7 @@ class Leetcode:
                                 ))
         return temp
 
-    def write_one_md(self, title=None, frontendId=None, translatedTitle=None, code='Python3'):
+    def write_md(self, title=None, frontendId=None, translatedTitle=None, code='Python3'):
         where = [f'title="{title}"' if title is not None else '',
                  f'frontendId="{frontendId}"' if frontendId is not None else '',
                  f'translatedTitle="{translatedTitle}"' if translatedTitle is not None else '']
@@ -171,6 +171,7 @@ class Leetcode:
         temps = self.cur.fetchall()
         for temp in temps:
             frontendId, translatedTitle, title, titleSlug, translatedContent = temp
+            print(frontendId, translatedTitle, title, titleSlug)
             if translatedContent == '':
                 print('该题是会员题，请账号充值会员后再看')
             with open(f'md_files/{frontendId}、{titleSlug}.md', 'w+', encoding='utf-8') as f:
@@ -186,7 +187,7 @@ class Leetcode:
 
 if __name__ == '__main__':
     lee = Leetcode()
-    lee.write_one_md(frontendId=3)
+    lee.write_md()
     print(time.time() - s)
     # 447.82914447784424
     # 480.8169491291046
