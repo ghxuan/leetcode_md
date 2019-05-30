@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import json
 import sqlite3
@@ -157,8 +158,7 @@ class Leetcode:
                                 data['translatedContent']))
         else:
             temp = "', '".join((data['title'] if data['translatedTitle'] is None else data['translatedTitle'],
-                                '', ''
-                                ))
+                                '', ''))
         return temp
 
     def write_md(self, title=None, frontendId=None, translatedTitle=None, code='Python3'):
@@ -187,7 +187,8 @@ class Leetcode:
 
 if __name__ == '__main__':
     lee = Leetcode()
-    lee.write_md()
+    print(sys.argv)
+    # lee.write_md()
     print(time.time() - s)
     # 447.82914447784424
     # 480.8169491291046
