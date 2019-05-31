@@ -1,7 +1,9 @@
-import os
+# import os
+# import time
+
 import sys
-import time
 import json
+import getopt
 import sqlite3
 import requests
 import datetime
@@ -11,7 +13,8 @@ from srv.settings import *
 
 requests.packages.urllib3.disable_warnings()
 
-s = time.time()
+
+# s = time.time()
 
 
 class Leetcode:
@@ -168,13 +171,21 @@ class Leetcode:
         where = 'WHERE ' + ' AND '.join(filter(lambda x: x, where)) if set(where) != {''} else ''
         self.cur.execute(f'SELECT frontendId, translatedTitle, title, titleSlug, translatedContent '
                          f'FROM questions {where}')
+        print(f'SELECT frontendId, translatedTitle, title, titleSlug, translatedContent '
+              f'FROM questions {where}')
         temps = self.cur.fetchall()
+        if not temps:
+            print("请输入正确的中文标题或该题的序号或英文标题\n"
+                  "假如输入正确的标题后还无法生成正确的md文件，"
+                  "请输入python get_questions.py --reset 后，"
+                  "再运行生成md文件的代码")
+            return
         for temp in temps:
             frontendId, translatedTitle, title, titleSlug, translatedContent = temp
             print(frontendId, translatedTitle, title, titleSlug)
             if translatedContent == '':
                 print('该题是会员题，请账号充值会员后再看')
-            with open(f'md_files/{frontendId}、{titleSlug}.md', 'w+', encoding='utf-8') as f:
+            with open(f'{frontendId}、{titleSlug}.md', 'w+', encoding='utf-8') as f:
                 time_ = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 f.write(
                     f'---\ntitle: leetcode : {translatedTitle if translatedTitle else title}\ndate: {time_}\n'
@@ -182,13 +193,26 @@ class Leetcode:
                 f.write(f'[{translatedTitle if translatedTitle else title}]'
                         f'(https://leetcode-cn.com/problems/{titleSlug}/)\n\n')
                 f.write(translatedContent.replace('</p>', '</p>\n\n<!-- more -->', 1))
+                f.write('\n' * 3)
         pass
 
 
 if __name__ == '__main__':
     lee = Leetcode()
-    print(sys.argv)
+    print(sys.argv[1:])
+    opts, args = getopt.getopt(sys.argv[1:], "acirt:", ["reset", 'all'])
+    opts = dict(opts)
+    if '--reset' in opts or '-r' in opts:
+        lee.re_get()
+    if '--all' in opts or '-a' in opts:
+        lee.write_md()
+    elif '-c' in opts or '-i' in opts or '-t' in opts:
+        translatedTitle = opts.get('-c', None)
+        frontendId = opts.get('-i', None)
+        title = opts.get('-t', None)
+        lee.write_md(title, frontendId, translatedTitle)
+    print(opts, args)
     # lee.write_md()
-    print(time.time() - s)
+    # print(time.time() - s)
     # 447.82914447784424
     # 480.8169491291046
