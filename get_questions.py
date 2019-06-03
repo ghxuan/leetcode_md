@@ -11,13 +11,12 @@ from requests_toolbelt import MultipartEncoder
 
 from srv.settings import *
 
-requests.packages.urllib3.disable_warnings()
-
 
 # s = time.time()
 
 
-class Leetcode:
+# noinspection SqlInsertValues
+class LEETCode:
     def __init__(self):
         self.con = sqlite3.connect('leetcode.db')
         self.cur = self.con.cursor()
@@ -53,8 +52,7 @@ class Leetcode:
     # 获取初次登陆的cookie
     def get_cookies(self):
         res = requests.get('https://leetcode-cn.com/accounts/login/?next=%2Fproblemset%2Fall%2F',
-                           headers=self.hea,
-                           verify=False)
+                           headers=self.hea)
         self.cookies = res.cookies
 
     # 模拟登陆  更换cookies
@@ -75,7 +73,6 @@ class Leetcode:
         res = requests.post('https://leetcode-cn.com/accounts/login/',
                             headers=hea,
                             cookies=self.cookies,
-                            verify=False,
                             data=response)
         self.cookies = res.cookies
         # print(res.text)
@@ -97,12 +94,10 @@ class Leetcode:
         # res = requests.post('https://leetcode-cn.com/graphql',
         #                     headers=hea,
         #                     cookies=self.cookies,
-        #                     verify=False,
         #                     data=json.dumps(response))
         all_res = requests.get('https://leetcode-cn.com/api/problems/all/',
                                headers=hea,
-                               cookies=self.cookies,
-                               verify=False)
+                               cookies=self.cookies)
         level = {1: '简单', 2: '中等', 3: '困难'}
         # title = dict((
         #     (int(question['question']['questionId']), question['title'])
@@ -119,7 +114,7 @@ class Leetcode:
         #     self.get_question(para[3])
         for status in json.loads(all_res.text)['stat_status_pairs'][::-1]:
             title = status['stat']['question__title'].replace("'", '"')
-            print(status['stat']['question_id'], title, status['stat']['frontend_question_id'])
+            print(status['stat']['question_id'], status['stat']['frontend_question_id'], title)
             self.cur.execute(
                 f"INSERT INTO questions(id, title, titleSlug, articleLive, articleSlug, level, totalSubmitted, "
                 f"totalAcs, frontendId, translatedTitle, content, translatedContent) "
@@ -143,13 +138,21 @@ class Leetcode:
             "variables": {
                 "titleSlug": ""
             },
-            "query": "query questionData($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    questionId\n    questionFrontendId\n    boundTopicId\n    title\n    titleSlug\n    content\n    translatedTitle\n    translatedContent\n    isPaidOnly\n    difficulty\n    likes\n    dislikes\n    isLiked\n    similarQuestions\n    contributors {\n      username\n      profileUrl\n      avatarUrl\n      __typename\n    }\n    langToValidPlayground\n    topicTags {\n      name\n      slug\n      translatedName\n      __typename\n    }\n    companyTagStats\n    codeSnippets {\n      lang\n      langSlug\n      code\n      __typename\n    }\n    stats\n    hints\n    solution {\n      id\n      canSeeDetail\n      __typename\n    }\n    status\n    sampleTestCase\n    metaData\n    judgerAvailable\n    judgeType\n    mysqlSchemas\n    enableRunCode\n    enableTestMode\n    envInfo\n    __typename\n  }\n}\n"
+            "query": "query questionData($titleSlug: String!) {\n  question(titleSlug: $titleSlug) {\n    "
+                     "questionId\n    questionFrontendId\n    boundTopicId\n    title\n    titleSlug\n    content\n   "
+                     " translatedTitle\n    translatedContent\n    isPaidOnly\n    difficulty\n    likes\n    "
+                     "dislikes\n    isLiked\n    similarQuestions\n    contributors {\n      username\n      "
+                     "profileUrl\n      avatarUrl\n      __typename\n    }\n    langToValidPlayground\n    topicTags "
+                     "{\n      name\n      slug\n      translatedName\n      __typename\n    }\n    companyTagStats\n "
+                     "   codeSnippets {\n      lang\n      langSlug\n      code\n      __typename\n    }\n    stats\n "
+                     "   hints\n    solution {\n      id\n      canSeeDetail\n      __typename\n    }\n    status\n   "
+                     " sampleTestCase\n    metaData\n    judgerAvailable\n    judgeType\n    mysqlSchemas\n    "
+                     "enableRunCode\n    enableTestMode\n    envInfo\n    __typename\n  }\n}\n "
         }
 
         response['variables']['titleSlug'] = slug
         res = requests.post('https://leetcode-cn.com/graphql',
                             headers=hea,
-                            verify=False,
                             cookies=self.cookies,
                             data=json.dumps(response))
         data = json.loads(res.text)['data']['question']
@@ -164,15 +167,14 @@ class Leetcode:
                                 '', ''))
         return temp
 
-    def write_md(self, title=None, frontendId=None, translatedTitle=None, code='Python3'):
+    def write_md(self, date=None, slug=None, title=None, frontend_id=None, translated_title=None, code='Python3'):
         where = [f'title="{title}"' if title is not None else '',
-                 f'frontendId="{frontendId}"' if frontendId is not None else '',
-                 f'translatedTitle="{translatedTitle}"' if translatedTitle is not None else '']
+                 f'titleSlug="{slug}"' if slug is not None else '',
+                 f'frontendId="{frontend_id}"' if frontend_id is not None else '',
+                 f'translatedTitle="{translated_title}"' if translated_title is not None else '']
         where = 'WHERE ' + ' AND '.join(filter(lambda x: x, where)) if set(where) != {''} else ''
         self.cur.execute(f'SELECT frontendId, translatedTitle, title, titleSlug, translatedContent '
                          f'FROM questions {where}')
-        print(f'SELECT frontendId, translatedTitle, title, titleSlug, translatedContent '
-              f'FROM questions {where}')
         temps = self.cur.fetchall()
         if not temps:
             print("请输入正确的中文标题或该题的序号或英文标题\n"
@@ -181,38 +183,51 @@ class Leetcode:
                   "再运行生成md文件的代码")
             return
         for temp in temps:
-            frontendId, translatedTitle, title, titleSlug, translatedContent = temp
-            print(frontendId, translatedTitle, title, titleSlug)
-            if translatedContent == '':
+            frontend_id, translated_title, title, title_slug, translated_content = temp
+            # print(frontend_id, translated_title, title, title_slug)
+            if translated_content == '':
                 print('该题是会员题，请账号充值会员后再看')
-            with open(f'{frontendId}、{titleSlug}.md', 'w+', encoding='utf-8') as f:
-                time_ = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            with open(f'{frontend_id}、{title_slug}.md', 'w+', encoding='utf-8') as f:
+                if date is None:
+                    date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    date = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
                 f.write(
-                    f'---\ntitle: leetcode : {translatedTitle if translatedTitle else title}\ndate: {time_}\n'
+                    f'---\ntitle: leetcode : {translated_title if translated_title else title}\ndate: {date}\n'
                     f'tags: [{code}, Leetcode]\n---\n\n')
-                f.write(f'[{translatedTitle if translatedTitle else title}]'
-                        f'(https://leetcode-cn.com/problems/{titleSlug}/)\n\n')
-                f.write(translatedContent.replace('</p>', '</p>\n\n<!-- more -->', 1))
+                f.write(f'[{translated_title if translated_title else title}]'
+                        f'(https://leetcode-cn.com/problems/{title_slug}/)\n\n')
+                f.write(translated_content.replace('</p>', '</p>\n\n<!-- more -->', 1))
                 f.write('\n' * 3)
+                print(frontend_id, translated_title, title, title_slug, "已添加完成")
         pass
 
 
-if __name__ == '__main__':
-    lee = Leetcode()
-    print(sys.argv[1:])
-    opts, args = getopt.getopt(sys.argv[1:], "acirt:", ["reset", 'all'])
+def main():
+    lee = LEETCode()
+    # print(sys.argv[1:])
+    opts, args = getopt.getopt(sys.argv[1:],
+                               "ac:i:rs:t:d:",
+                               ["reset", "all", "title=", "id=", "chinese=", "slug=", "date="])
     opts = dict(opts)
     if '--reset' in opts or '-r' in opts:
         lee.re_get()
     if '--all' in opts or '-a' in opts:
         lee.write_md()
-    elif '-c' in opts or '-i' in opts or '-t' in opts:
-        translatedTitle = opts.get('-c', None)
-        frontendId = opts.get('-i', None)
-        title = opts.get('-t', None)
-        lee.write_md(title, frontendId, translatedTitle)
-    print(opts, args)
+    elif '-i' in opts or '--id' in opts or '-t' in opts or '--title' in opts or '-c' in opts or '--chinese' in opts or \
+            '-s' in opts or '--slug' in opts:
+        translated_title = opts.get('--chinese', opts.get('-c', None))
+        frontend_id = opts.get('--id', opts.get('-i', None))
+        title = opts.get('--title', opts.get('-t', None))
+        slug = opts.get('--slug', opts.get('-s', None))
+        date = opts.get('--date', opts.get('-d', None))
+        lee.write_md(date=date, slug=slug, title=title, frontend_id=frontend_id, translated_title=translated_title)
+    # print(opts, args)
     # lee.write_md()
     # print(time.time() - s)
     # 447.82914447784424
     # 480.8169491291046
+
+
+if __name__ == '__main__':
+    main()
