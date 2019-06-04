@@ -207,9 +207,23 @@ def main():
     lee = LEETCode()
     # print(sys.argv[1:])
     opts, args = getopt.getopt(sys.argv[1:],
-                               "ac:i:rs:t:d:",
-                               ["reset", "all", "title=", "id=", "chinese=", "slug=", "date="])
+                               "ac:d:hi:rs:t:",
+                               ['all', 'chinese=', 'date=', 'help', 'id=', 'reset', 'slug=', 'title='])
     opts = dict(opts)
+    if '--help' in opts or '-h' in opts:
+        print("""usage: python get_questions.py [OPTION]...\n
+options:
+    -a, --all        将所有的题都转换成md文件
+    -c, --chinese    该题在leetcode上的中文标题
+    -d, --date       生成md文件后，时间
+    -h, --help       注释，参数帮助
+    -i, --id         该题在leetcode上的序号
+    -r, --reset      下载或更新所有leetcode上的题目及免费题
+    -s, --slug       该题在leetcode上的网址，url除去相同内容。
+                     例： https://leetcode-cn.com/problems/two-sum/     two-sum
+    -t, --title      该题在leetcode上的英文标题
+""")
+        return
     if '--reset' in opts or '-r' in opts:
         lee.re_get()
     if '--all' in opts or '-a' in opts:
